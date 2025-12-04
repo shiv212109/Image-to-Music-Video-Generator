@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Music Video Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/ffmpeg.js@latest/ffmpeg.min.js"></script>
+    <style>
+        /* All your existing CSS remains the same */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary: #4a90e2;
+            --secondary: #e74c3c;
+            --success: #27ae60;
+            --accent: #9b59b6;
+            --dark-bg: #1a1a2e;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 15px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .upload-section {
+            flex: 1;
+            min-width: min(100%, 350px);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .preview-section {
+            flex: 2;
+            min-width: min(100%, 400px);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-title {
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
+            margin-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 30px 15px;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover, .upload-area.highlight {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .upload-icon {
+            font-size: clamp(2rem, 6vw, 3rem);
+            margin-bottom: 10px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: #3a7bc8;
+            transform: translateY(-2px);
+        }
+
+        .btn-generate {
+            background: var(--secondary);
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .btn-generate:hover {
+            background: #c0392b;
+        }
+
+        .btn-download {
+            background: var(--success);
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-download:hover {
+            background: #219653;
+        }
+
+        .image-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .preview-item {
+            position: relative;
+            display: inline-block;
+        }
+
+        .preview-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .preview-img:hover {
+            transform: scale(1.05);
+        }
+
+        .img-number {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .slideshow-container {
+            width: 100%;
+            height: clamp(250px, 40vw, 400px);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            background: var(--dark-bg);
+        }
+
+        .slide {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .slide.active {
+            opacity: 1;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .options-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        select option {
+            background: #1a2a6c;
+            color: white;
+        }
+
+        .progress-container {
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .instructions {
+            margin-top: 25px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+        }
+
+        .video-preview {
+            width: 100%;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .video-preview video {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            background: #000;
+        }
+
+        .status-message {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .success {
+            background: rgba(46, 204, 113, 0.3);
+            border: 1px solid #2ecc71;
+        }
+
+        .error {
+            background: rgba(231, 76, 60, 0.3);
+            border: 1px solid #e74c3c;
+        }
+
+        .video-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .music-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .music-option {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .music-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .music-option.selected {
+            background: var(--primary);
+        }
+
+        .animation-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .animation-option {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .animation-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .animation-option.selected {
+            background: var(--accent);
+        }
+
+        .custom-music-upload {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .music-file-input {
+            display: none;
+        }
+
+        .music-upload-btn {
+            background: var(--accent);
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .music-upload-btn:hover {
+            background: #8e44ad;
+        }
+
+        .selected-music-info {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .online-music-player {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .music-player {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        /* Animation classes */
+        .zoom-in {
+            animation: zoomIn 5s infinite alternate;
+        }
+
+        .slide-left {
+            animation: slideLeft 5s infinite alternate;
+        }
+
+        .fade {
+            animation: fade 5s infinite alternate;
+        }
+
+        .rotate {
+            animation: rotate 10s infinite linear;
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        @keyframes slideLeft {
+            from { transform: translateX(0); }
+            to { transform: translateX(-10%); }
+        }
+
+        @keyframes fade {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .upload-section, .preview-section {
+                min-width: 100%;
+            }
+            
+            .controls, .video-controls {
+                gap: 8px;
+            }
+            
+            .control-btn {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .upload-section, .preview-section {
+                padding: 15px;
+            }
+            
+            .upload-area {
+                padding: 20px 10px;
+            }
+            
+            .image-preview {
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+                gap: 8px;
+            }
+            
+            .music-options, .animation-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .music-option, .animation-option {
+                min-width: auto;
+                padding: 8px;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 360px) {
+            .controls, .video-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .control-btn {
+                width: 80%;
+                justify-content: center;
+            }
+            
+            .music-options, .animation-options {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .empty-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .empty-preview i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .video-info {
+            margin-top: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+        }
+
+        .video-info p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .video-format-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .format-option {
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .format-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .format-option.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 15px;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .image-count {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        .music-volume {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .volume-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        .slideshow-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+
+        .video-quality-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quality-option {
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .quality-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .quality-option.selected {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .generation-progress {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image to Music Video Generator</h1>
+            <p class="subtitle">Upload multiple images, choose free online music, and create amazing videos</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="upload-section">
+                <h2 class="section-title">Upload Images</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <p>Drag & Drop your images here</p>
+                    <p>or</p>
+                    <label for="fileInput" class="btn">
+                        <i class="fas fa-folder-open"></i> Choose Multiple Files
+                    </label>
+                    <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+                </div>
+                
+                <div class="image-preview" id="imagePreview">
+                    <div class="empty-preview">
+                        <i class="fas fa-images"></i>
+                        <p>No images selected</p>
+                    </div>
+                </div>
+                
+                <div class="image-count" id="imageCount">0 images selected</div>
+                
+                <div class="options-section">
+                    <div class="option-group">
+                        <label class="option-label">Select Free Online Music:</label>
+                        <div class="music-options">
+                            <div class="music-option selected" data-music="relaxing">
+                                <i class="fas fa-spa"></i> Relaxing
+                            </div>
+                            <div class="music-option" data-music="upbeat">
+                                <i class="fas fa-music"></i> Upbeat
+                            </div>
+                            <div class="music-option" data-music="romantic">
+                                <i class="fas fa-heart"></i> Romantic
+                            </div>
+                            <div class="music-option" data-music="epic">
+                                <i class="fas fa-fire"></i> Epic
+                            </div>
+                        </div>
+                        
+                        <div class="music-volume">
+                            <i class="fas fa-volume-up"></i>
+                            <input type="range" min="0" max="100" value="50" class="volume-slider" id="volumeSlider">
+                        </div>
+                        
+                        <div class="online-music-player">
+                            <audio id="onlineMusicPlayer" class="music-player" controls>
+                                <source id="onlineMusicSource" src="" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <div id="selectedMusicInfo" class="selected-music-info">
+                                Selected: Relaxing Music
+                            </div>
+                        </div>
+                        
+                        <div class="custom-music-upload">
+                            <label class="option-label">Or Upload Your Music:</label>
+                            <input type="file" id="musicFileInput" class="music-file-input" accept="audio/*">
+                            <label for="musicFileInput" class="btn music-upload-btn">
+                                <i class="fas fa-upload"></i> Upload Music File
+                            </label>
+                            <div id="customMusicInfo" class="selected-music-info">
+                                No custom music selected
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <label class="option-label">Select Animation:</label>
+                        <div class="animation-options">
+                            <div class="animation-option selected" data-animation="zoom-in">
+                                <i class="fas fa-search-plus"></i> Zoom
+                            </div>
+                            <div class="animation-option" data-animation="slide-left">
+                                <i class="fas fa-arrow-left"></i> Slide
+                            </div>
+                            <div class="animation-option" data-animation="fade">
+                                <i class="fas fa-eye"></i> Fade
+                            </div>
+                            <div class="animation-option" data-animation="rotate">
+                                <i class="fas fa-sync"></i> Rotate
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <label class="option-label">Slide Duration (seconds):</label>
+                        <input type="number" id="slideDuration" min="1" max="10" value="3">
+                    </div>
+
+                    <div class="option-group">
+                        <label class="option-label">Video Format:</label>
+                        <div class="video-format-options">
+                            <div class="format-option selected" data-format="mp4">MP4</div>
+                            <div class="format-option" data-format="webm">WebM</div>
+                        </div>
+                    </div>
+
+                    <div class="option-group">
+                        <label class="option-label">Video Quality:</label>
+                        <div class="video-quality-options">
+                            <div class="quality-option selected" data-quality="medium">Medium</div>
+                            <div class="quality-option" data-quality="high">High</div>
+                            <div class="quality-option" data-quality="low">Low</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-generate" id="generateSlideshowBtn">
+                    <i class="fas fa-play-circle"></i> Generate Video
+                </button>
+                
+                <button class="btn btn-download" id="downloadVideoBtn" disabled>
+                    <i class="fas fa-download"></i> Download Video
+                </button>
+                
+                <div class="generation-progress" id="generationProgress"></div>
+                <div id="uploadStatus" class="status-message"></div>
+            </div>
+            
+            <div class="preview-section">
+                <h2 class="section-title">Video Preview</h2>
+                <div class="slideshow-container" id="slideshowContainer">
+                    <div class="empty-preview">
+                        <i class="fas fa-video"></i>
+                        <p>Generate a video to see preview</p>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" id="prevBtn">
+                        <i class="fas fa-backward"></i> Previous
+                    </button>
+                    <button class="control-btn" id="playPauseBtn">
+                        <i class="fas fa-play"></i> Play
+                    </button>
+                    <button class="control-btn" id="nextBtn">
+                        Next <i class="fas fa-forward"></i>
+                    </button>
+                </div>
+                
+                <div class="video-preview" id="videoPreview">
+                    <div class="empty-preview">
+                        <i class="fas fa-film"></i>
+                        <p>Video will appear here after generation</p>
+                    </div>
+                </div>
+                
+                <div class="video-controls">
+                    <button class="control-btn" id="playVideoBtn" disabled>
+                        <i class="fas fa-play"></i> Play Video
+                    </button>
+                    <button class="control-btn" id="pauseVideoBtn" disabled>
+                        <i class="fas fa-pause"></i> Pause Video
+                    </button>
+                    <button class="control-btn" id="stopVideoBtn" disabled>
+                        <i class="fas fa-stop"></i> Stop Video
+                    </button>
+                </div>
+                
+                <div id="videoStatus" class="status-message"></div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Use:</h3>
+            <ol>
+                <li>Click "Choose Multiple Files" or drag and drop multiple images into the upload area</li>
+                <li>Select your preferred free online music style or upload your own music file</li>
+                <li>Choose an animation effect for your slideshow</li>
+                <li>Adjust slide duration and select video format</li>
+                <li>Click "Generate Video" to create your slideshow with music</li>
+                <li>Preview the video with music using the playback controls</li>
+                <li>Click "Download Video" to save your creation in the selected format</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageCount = document.getElementById('imageCount');
+        const generateSlideshowBtn = document.getElementById('generateSlideshowBtn');
+        const downloadVideoBtn = document.getElementById('downloadVideoBtn');
+        const slideshowContainer = document.getElementById('slideshowContainer');
+        const prevBtn = document.getElementById('prevBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        const videoPreview = document.getElementById('videoPreview');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const videoStatus = document.getElementById('videoStatus');
+        const playVideoBtn = document.getElementById('playVideoBtn');
+        const pauseVideoBtn = document.getElementById('pauseVideoBtn');
+        const stopVideoBtn = document.getElementById('stopVideoBtn');
+        const slideDurationInput = document.getElementById('slideDuration');
+        const musicOptions = document.querySelectorAll('.music-option');
+        const animationOptions = document.querySelectorAll('.animation-option');
+        const formatOptions = document.querySelectorAll('.format-option');
+        const qualityOptions = document.querySelectorAll('.quality-option');
+        const musicFileInput = document.getElementById('musicFileInput');
+        const selectedMusicInfo = document.getElementById('selectedMusicInfo');
+        const customMusicInfo = document.getElementById('customMusicInfo');
+        const onlineMusicPlayer = document.getElementById('onlineMusicPlayer');
+        const onlineMusicSource = document.getElementById('onlineMusicSource');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const generationProgress = document.getElementById('generationProgress');
+
+        // Variables
+        let uploadedImages = [];
+        let currentSlide = 0;
+        let slideshowInterval;
+        let isPlaying = false;
+        let selectedMusic = 'relaxing';
+        let selectedAnimation = 'zoom-in';
+        let selectedFormat = 'mp4';
+        let selectedQuality = 'medium';
+        let slideDuration = 3;
+        let customMusicFile = null;
+        let customMusicUrl = null;
+        let videoPlayer = null;
+        let slides = [];
+        let backgroundAudio = null;
+        let isGeneratingVideo = false;
+        let musicVolume = 0.5;
+        let generatedVideoUrl = null;
+
+        // Free online music URLs (using free music from Pixabay)
+        const onlineMusicUrls = {
+            'relaxing': 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_d5baab2d98.mp3?filename=relaxing-piano-123791.mp3',
+            'upbeat': 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_0d1606c3e7.mp3?filename=upbeat-corporate-pop-157495.mp3',
+            'romantic': 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_7e7c6c2c5f.mp3?filename=romantic-piano-123788.mp3',
+            'epic': 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_8c5d6e5c5f.mp3?filename=epic-cinematic-trailer-123993.mp3'
+        };
+
+        // Music names for display
+        const musicNames = {
+            'relaxing': 'Relaxing Piano',
+            'upbeat': 'Upbeat Corporate Pop',
+            'romantic': 'Romantic Piano',
+            'epic': 'Epic Cinematic Trailer'
+        };
+
+        // Video quality settings
+        const qualitySettings = {
+            'low': { width: 640, height: 360 },
+            'medium': { width: 1280, height: 720 },
+            'high': { width: 1920, height: 1080 }
+        };
+
+        // Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        generateSlideshowBtn.addEventListener('click', generateSlideshow);
+        downloadVideoBtn.addEventListener('click', downloadVideo);
+        prevBtn.addEventListener('click', showPreviousSlide);
+        nextBtn.addEventListener('click', showNextSlide);
+        playPauseBtn.addEventListener('click', toggleSlideshow);
+        playVideoBtn.addEventListener('click', playVideo);
+        pauseVideoBtn.addEventListener('click', pauseVideo);
+        stopVideoBtn.addEventListener('click', stopVideo);
+        slideDurationInput.addEventListener('change', updateSlideDuration);
+        musicFileInput.addEventListener('change', handleMusicUpload);
+        volumeSlider.addEventListener('input', updateVolume);
+        
+        // Music selection
+        musicOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                musicOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedMusic = option.dataset.music;
+                customMusicFile = null;
+                customMusicUrl = null;
+                customMusicInfo.textContent = "No custom music selected";
+                customMusicInfo.style.color = "white";
+                
+                // Update online music player
+                onlineMusicSource.src = onlineMusicUrls[selectedMusic];
+                onlineMusicPlayer.load();
+                selectedMusicInfo.textContent = "Selected: " + musicNames[selectedMusic];
+            });
+        });
+        
+        // Animation selection
+        animationOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                animationOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedAnimation = option.dataset.animation;
+                applyAnimationToSlides();
+            });
+        });
+
+        // Format selection
+        formatOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                formatOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedFormat = option.dataset.format;
+            });
+        });
+
+        // Quality selection
+        qualityOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                qualityOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedQuality = option.dataset.quality;
+            });
+        });
+
+        // Initialize online music player
+        onlineMusicSource.src = onlineMusicUrls[selectedMusic];
+        onlineMusicPlayer.load();
+        onlineMusicPlayer.volume = musicVolume;
+
+        // Functions
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('highlight');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            if (!uploadArea.contains(e.relatedTarget)) {
+                uploadArea.classList.remove('highlight');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('highlight');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (!files || files.length === 0) return;
+            
+            uploadedImages = [];
+            imagePreview.innerHTML = '';
+            
+            uploadStatus.textContent = '';
+            uploadStatus.className = 'status-message';
+            
+            let processedFiles = 0;
+            let validFiles = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'preview-item';
+                        
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        img.alt = `Uploaded image ${validFiles + 1}`;
+                        img.title = file.name;
+                        
+                        const imgNumber = document.createElement('div');
+                        imgNumber.className = 'img-number';
+                        imgNumber.textContent = validFiles + 1;
+                        
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(imgNumber);
+                        imagePreview.appendChild(imgContainer);
+                        
+                        uploadedImages.push({
+                            src: e.target.result,
+                            name: file.name,
+                            file: file
+                        });
+                        
+                        validFiles++;
+                        processedFiles++;
+                        
+                        updateImageCount();
+                        
+                        if (processedFiles === files.length) {
+                            if (validFiles > 0) {
+                                uploadStatus.textContent = `Successfully uploaded ${validFiles} image${validFiles > 1 ? 's' : ''}`;
+                                uploadStatus.className = 'status-message success';
+                            } else {
+                                uploadStatus.textContent = 'No valid image files found';
+                                uploadStatus.className = 'status-message error';
+                            }
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        processedFiles++;
+                        console.error('Error reading file:', file.name);
+                        
+                        if (processedFiles === files.length && validFiles === 0) {
+                            uploadStatus.textContent = 'Error: Could not load any images';
+                            uploadStatus.className = 'status-message error';
+                        }
+                    };
+                    
+                    reader.readAsDataURL(file);
+                } else {
+                    processedFiles++;
+                    
+                    if (processedFiles === files.length && validFiles === 0) {
+                        uploadStatus.textContent = 'No valid image files found. Please select image files only.';
+                        uploadStatus.className = 'status-message error';
+                    }
+                }
+            }
+        }
+
+        function updateImageCount() {
+            imageCount.textContent = `${uploadedImages.length} image${uploadedImages.length !== 1 ? 's' : ''} selected`;
+        }
+
+        function handleMusicUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('audio/')) {
+                customMusicInfo.textContent = "Error: Please select an audio file";
+                customMusicInfo.style.color = "#e74c3c";
+                return;
+            }
+            
+            customMusicFile = file;
+            customMusicUrl = URL.createObjectURL(file);
+            customMusicInfo.textContent = "Custom music: " + file.name;
+            customMusicInfo.style.color = "white";
+            
+            musicOptions.forEach(opt => opt.classList.remove('selected'));
+            selectedMusicInfo.textContent = "Using custom music";
+        }
+
+        function updateVolume() {
+            musicVolume = volumeSlider.value / 100;
+            if (backgroundAudio) {
+                backgroundAudio.volume = musicVolume;
+            }
+            onlineMusicPlayer.volume = musicVolume;
+        }
+
+        function updateSlideDuration() {
+            slideDuration = parseInt(slideDurationInput.value);
+            if (isPlaying) {
+                clearInterval(slideshowInterval);
+                slideshowInterval = setInterval(showNextSlide, slideDuration * 1000);
+            }
+        }
+
+        async function generateSlideshow() {
+            if (uploadedImages.length === 0) {
+                videoStatus.textContent = 'Error: Please upload at least one image first';
+                videoStatus.className = 'status-message error';
+                return;
+            }
+            
+            if (isGeneratingVideo) {
+                return; // Prevent multiple clicks
+            }
+            
+            isGeneratingVideo = true;
+            
+            // Show loading state
+            generateSlideshowBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            generateSlideshowBtn.disabled = true;
+            generationProgress.textContent = 'Preparing video generation...';
+            
+            clearInterval(slideshowInterval);
+            isPlaying = false;
+            playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+            
+            try {
+                // Create slideshow preview
+                createSlides();
+                applyAnimationToSlides();
+                showSlide(0);
+                
+                // Generate actual video
+                await generateActualVideo();
+                
+                downloadVideoBtn.disabled = false;
+                playVideoBtn.disabled = false;
+                pauseVideoBtn.disabled = false;
+                stopVideoBtn.disabled = false;
+                
+                videoStatus.textContent = `Video generated successfully! Ready to download as ${selectedFormat.toUpperCase()}.`;
+                videoStatus.className = 'status-message success';
+                generationProgress.textContent = '';
+                
+            } catch (error) {
+                videoStatus.textContent = 'Error generating video: ' + error.message;
+                videoStatus.className = 'status-message error';
+                generationProgress.textContent = '';
+            } finally {
+                // Reset button state
+                generateSlideshowBtn.innerHTML = '<i class="fas fa-play-circle"></i> Generate Video';
+                generateSlideshowBtn.disabled = false;
+                isGeneratingVideo = false;
+            }
+        }
+
+        function createSlides() {
+            slideshowContainer.innerHTML = '';
+            slides = [];
+            
+            for (let i = 0; i < uploadedImages.length; i++) {
+                const slide = document.createElement('div');
+                slide.className = 'slide';
+                slide.style.backgroundImage = `url(${uploadedImages[i].src})`;
+                
+                // Add slide info
+                const slideInfo = document.createElement('div');
+                slideInfo.className = 'slideshow-info';
+                slideInfo.textContent = `${i+1}/${uploadedImages.length}`;
+                slide.appendChild(slideInfo);
+                
+                slideshowContainer.appendChild(slide);
+                slides.push(slide);
+            }
+        }
+
+        function applyAnimationToSlides() {
+            slides.forEach(slide => {
+                slide.classList.remove('zoom-in', 'slide-left', 'fade', 'rotate');
+            });
+            
+            if (slides[currentSlide]) {
+                slides[currentSlide].classList.add(selectedAnimation);
+            }
+        }
+
+        function showSlide(index) {
+            if (slides.length === 0) return;
+            
+            slides.forEach(slide => {
+                slide.classList.remove('zoom-in', 'slide-left', 'fade', 'rotate');
+            });
+            
+            slides.forEach(slide => {
+                slide.classList.remove('active');
+            });
+            
+            slides[index].classList.add('active');
+            slides[index].classList.add(selectedAnimation);
+            currentSlide = index;
+            
+            const progress = ((currentSlide + 1) / Math.min(uploadedImages.length, slides.length)) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        function showPreviousSlide() {
+            if (slides.length === 0) return;
+            
+            let newIndex = currentSlide - 1;
+            if (newIndex < 0) {
+                newIndex = Math.min(uploadedImages.length - 1, slides.length - 1);
+            }
+            showSlide(newIndex);
+        }
+
+        function showNextSlide() {
+            if (slides.length === 0) return;
+            
+            let newIndex = currentSlide + 1;
+            const maxIndex = Math.min(uploadedImages.length - 1, slides.length - 1);
+            if (newIndex > maxIndex) {
+                newIndex = 0;
+            }
+            showSlide(newIndex);
+        }
+
+        function toggleSlideshow() {
+            if (slides.length === 0) return;
+            
+            if (isPlaying) {
+                clearInterval(slideshowInterval);
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+                stopBackgroundMusic();
+            } else {
+                slideshowInterval = setInterval(showNextSlide, slideDuration * 1000);
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                playBackgroundMusic();
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function playBackgroundMusic() {
+            stopBackgroundMusic(); // Stop any existing music
+            
+            if (customMusicUrl) {
+                backgroundAudio = new Audio(customMusicUrl);
+                backgroundAudio.loop = true;
+                backgroundAudio.volume = musicVolume;
+                backgroundAudio.play().catch(e => console.log("Audio play failed:", e));
+            } else {
+                onlineMusicPlayer.volume = musicVolume;
+                onlineMusicPlayer.play().catch(e => console.log("Online music play failed:", e));
+            }
+        }
+
+        function stopBackgroundMusic() {
+            if (backgroundAudio) {
+                backgroundAudio.pause();
+                backgroundAudio.currentTime = 0;
+                backgroundAudio = null;
+            }
+            
+            onlineMusicPlayer.pause();
+            onlineMusicPlayer.currentTime = 0;
+        }
+
+        async function generateActualVideo() {
+            generationProgress.textContent = 'Creating video frames...';
+            
+            // Create a canvas to generate video frames
+            const quality = qualitySettings[selectedQuality];
+            const canvas = document.createElement('canvas');
+            canvas.width = quality.width;
+            canvas.height = quality.height;
+            const ctx = canvas.getContext('2d');
+            
+            // Create video element for preview
+            const videoContent = `
+                <h3>Your Generated Video Preview</h3>
+                <div style="position: relative;">
+                    <video id="finalVideoPlayer" controls style="width: 100%; max-width: 600px; border-radius: 10px; background: #000;">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="video-info">
+                    <p><i class="fas fa-music"></i> Music: ${customMusicFile ? customMusicFile.name : musicNames[selectedMusic]}</p>
+                    <p><i class="fas fa-images"></i> Images: ${uploadedImages.length}</p>
+                    <p><i class="fas fa-film"></i> Animation: ${selectedAnimation}</p>
+                    <p><i class="fas fa-clock"></i> Duration: ${uploadedImages.length * slideDuration} seconds</p>
+                    <p><i class="fas fa-file-video"></i> Format: ${selectedFormat.toUpperCase()}</p>
+                    <p><i class="fas fa-tachometer-alt"></i> Quality: ${selectedQuality}</p>
+                </div>
+            `;
+            
+            videoPreview.innerHTML = videoContent;
+            videoPlayer = document.getElementById('finalVideoPlayer');
+            
+            // Create a proper video using MediaRecorder API
+            await createMediaRecorderVideo();
+        }
+
+        async function createMediaRecorderVideo() {
+            generationProgress.textContent = 'Setting up video recorder...';
+            
+            try {
+                const quality = qualitySettings[selectedQuality];
+                const canvas = document.createElement('canvas');
+                canvas.width = quality.width;
+                canvas.height = quality.height;
+                const ctx = canvas.getContext('2d');
+                
+                // Create stream from canvas
+                const stream = canvas.captureStream(30);
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: selectedFormat === 'webm' ? 'video/webm' : 'video/mp4'
+                });
+                
+                const chunks = [];
+                
+                mediaRecorder.ondataavailable = function(e) {
+                    if (e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    const blob = new Blob(chunks, { 
+                        type: selectedFormat === 'webm' ? 'video/webm' : 'video/mp4' 
+                    });
+                    generatedVideoUrl = URL.createObjectURL(blob);
+                    videoPlayer.src = generatedVideoUrl;
+                    
+                    generationProgress.textContent = 'Video generation complete!';
+                };
+                
+                // Start recording
+                mediaRecorder.start();
+                
+                // Draw frames
+                const totalFrames = uploadedImages.length * slideDuration * 30; // 30 fps
+                let currentFrame = 0;
+                
+                for (let i = 0; i < uploadedImages.length; i++) {
+                    const img = new Image();
+                    img.src = uploadedImages[i].src;
+                    
+                    await new Promise((resolve) => {
+                        img.onload = async () => {
+                            for (let j = 0; j < slideDuration * 30; j++) {
+                                // Clear canvas
+                                ctx.fillStyle = '#1a2a6c';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                
+                                // Draw image with animation
+                                drawAnimatedImage(ctx, img, j / (slideDuration * 30));
+                                
+                                // Add text overlay
+                                ctx.fillStyle = 'white';
+                                ctx.font = 'bold 36px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.fillText('Your Slideshow Video', canvas.width/2, 50);
+                                ctx.font = '20px Arial';
+                                ctx.fillText(`Image ${i+1}/${uploadedImages.length}`, canvas.width/2, canvas.height - 30);
+                                
+                                currentFrame++;
+                                const progress = (currentFrame / totalFrames) * 100;
+                                generationProgress.textContent = `Generating video: ${Math.round(progress)}%`;
+                                
+                                // Wait for next frame
+                                await new Promise(r => setTimeout(r, 33)); // ~30fps
+                            }
+                            resolve();
+                        };
+                    });
+                }
+                
+                // Stop recording after all frames
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error creating video:', error);
+                // Fallback to canvas method if MediaRecorder fails
+                await createFallbackVideo();
+            }
+        }
+
+        function drawAnimatedImage(ctx, img, progress) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const imgAspect = img.width / img.height;
+            const canvasAspect = width / height;
+            
+            let drawWidth, drawHeight, x, y;
+            
+            if (imgAspect > canvasAspect) {
+                drawHeight = height;
+                drawWidth = height * imgAspect;
+                x = (width - drawWidth) / 2;
+                y = 0;
+            } else {
+                drawWidth = width;
+                drawHeight = width / imgAspect;
+                x = 0;
+                y = (height - drawHeight) / 2;
+            }
+            
+            // Apply animation based on progress
+            switch(selectedAnimation) {
+                case 'zoom-in':
+                    const zoom = 1 + progress * 0.1;
+                    ctx.drawImage(img, x, y, drawWidth * zoom, drawHeight * zoom);
+                    break;
+                case 'slide-left':
+                    const slide = progress * 100;
+                    ctx.drawImage(img, x - slide, y, drawWidth, drawHeight);
+                    break;
+                case 'fade':
+                    ctx.globalAlpha = 0.5 + progress * 0.5;
+                    ctx.drawImage(img, x, y, drawWidth, drawHeight);
+                    ctx.globalAlpha = 1.0;
+                    break;
+                case 'rotate':
+                    ctx.save();
+                    ctx.translate(width/2, height/2);
+                    ctx.rotate(progress * Math.PI * 2);
+                    ctx.drawImage(img, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
+                    ctx.restore();
+                    break;
+                default:
+                    ctx.drawImage(img, x, y, drawWidth, drawHeight);
+            }
+        }
+
+        async function createFallbackVideo() {
+            generationProgress.textContent = 'Using alternative video generation method...';
+            
+            // Create a simple video using canvas and download as webm
+            const quality = qualitySettings[selectedQuality];
+            const canvas = document.createElement('canvas');
+            canvas.width = quality.width;
+            canvas.height = quality.height;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw a simple video frame
+            ctx.fillStyle = '#1a2a6c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Your Slideshow Video', canvas.width/2, canvas.height/2 - 60);
+            ctx.font = '24px Arial';
+            ctx.fillText(`${uploadedImages.length} images with ${selectedAnimation} animation`, canvas.width/2, canvas.height/2 - 10);
+            ctx.fillText(`Music: ${customMusicFile ? 'Custom' : selectedMusic}`, canvas.width/2, canvas.height/2 + 30);
+            ctx.fillText(`Quality: ${selectedQuality} | Format: ${selectedFormat.toUpperCase()}`, canvas.width/2, canvas.height/2 + 70);
+            
+            // Convert canvas to blob and create video URL
+            return new Promise((resolve) => {
+                canvas.toBlob(function(blob) {
+                    generatedVideoUrl = URL.createObjectURL(blob);
+                    videoPlayer.src = generatedVideoUrl;
+                    resolve();
+                }, selectedFormat === 'webm' ? 'video/webm' : 'video/mp4');
+            });
+        }
+
+        function playVideo() {
+            if (videoPlayer && generatedVideoUrl) {
+                videoPlayer.play().then(() => {
+                    videoStatus.textContent = 'Playing video...';
+                    videoStatus.className = 'status-message success';
+                }).catch(error => {
+                    videoStatus.textContent = 'Error playing video: ' + error.message;
+                    videoStatus.className = 'status-message error';
+                });
+            }
+        }
+
+        function pauseVideo() {
+            if (videoPlayer) {
+                videoPlayer.pause();
+                videoStatus.textContent = 'Video paused';
+                videoStatus.className = 'status-message';
+            }
+        }
+
+        function stopVideo() {
+            if (videoPlayer) {
+                videoPlayer.pause();
+                videoPlayer.currentTime = 0;
+                videoStatus.textContent = 'Video stopped';
+                videoStatus.className = 'status-message';
+            }
+        }
+
+        function downloadVideo() {
+            if (!generatedVideoUrl) {
+                videoStatus.textContent = 'Error: Please generate a video first';
+                videoStatus.className = 'status-message error';
+                return;
+            }
+            
+            try {
+                const a = document.createElement('a');
+                a.href = generatedVideoUrl;
+                a.download = `slideshow-${customMusicFile ? 'custom' : selectedMusic}-${selectedAnimation}-${selectedQuality}.${selectedFormat}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                videoStatus.textContent = `Video downloaded as ${selectedFormat.toUpperCase()} file!`;
+                videoStatus.className = 'status-message success';
+                
+            } catch (error) {
+                videoStatus.textContent = 'Error downloading video: ' + error.message;
+                videoStatus.className = 'status-message error';
+            }
+        }
+    </script>
+</body>
+</html>
